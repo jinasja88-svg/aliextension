@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_EXTENSION_NAME__",
+  "description": "__MSG_EXTENSION_DESCRIPTION__",
+  "version": "1.0.0",
+  "default_locale": "ko",
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "action": {
+    "default_icon": { "16": "icons/16.png", "32": "icons/32.png" },
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "assets/js/background.js"
+  },
+  "content_scripts": [{
+    "matches": ["http://*/*", "https://*/*"],
+    "js": ["assets/js/content-script.js"],
+    "css": ["assets/css/content-script.css"],
+    "all_frames": true,
+    "match_about_blank": true
+  }],
+  "permissions": ["activeTab", "alarms", "contextMenus", "cookies", "declarativeNetRequest", "declarativeNetRequestFeedback", "notifications", "scripting", "storage"],
+  "optional_permissions": ["downloads"],
+  "host_permissions": ["<all_urls>", "*://*.aliprice.com/*", "http://*/*", "https://*/*"],
+  "commands": {
+    "screenshotToImageSearch": {
+      "suggested_key": { "default": "Ctrl+Shift+1", "mac": "Command+Shift+1" },
+      "description": "__MSG_context_menu_screenshot_search__"
+    },
+    "translateWebpage": {
+      "suggested_key": { "default": "Ctrl+Shift+2", "mac": "Command+Shift+2" },
+      "description": "__MSG_context_menus_goote_trans__"
+    },
+    "screenshotToTranslate": {
+      "suggested_key": { "default": "Ctrl+Shift+3", "mac": "Command+Shift+3" },
+      "description": "__MSG_context_menus_translator__"
+    }
+  },
+  "declarative_net_request": {
+    "rule_resources": [{
+      "id": "ruleset_1",
+      "enabled": true,
+      "path": "rules.json"
+    }]
+  },
+  "web_accessible_resources": [{
+    "resources": ["assets/*"],
+    "matches": ["http://*/*", "https://*/*"]
+  }],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  }
+}
