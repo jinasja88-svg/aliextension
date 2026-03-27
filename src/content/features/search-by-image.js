@@ -1,14 +1,14 @@
 import { sendMessage } from '../../shared/wext';
 import { ROUTES } from '../../shared/constants';
 import { captureScreenshot } from '../ui/screenshot-overlay';
-import { showResultsPanel, showLoadingPanel, appendResults } from '../ui/aside-panel';
+import { showResultsPanel, showLoadingPanel } from '../ui/aside-panel';
+import { search1688ByImage } from '../../shared/image-search/alibaba-cn';
 
 /**
  * Initialize image search feature
  */
 export function initSearchByImage(platform) {
-  // TODO: Add hover buttons on product images
-  // initHoverButtons(platform);
+  // Feature initialized
 }
 
 /**
@@ -17,14 +17,20 @@ export function initSearchByImage(platform) {
 export async function startImageSearch(imageUrl, trigger = 'unknown') {
   try {
     showLoadingPanel();
+    console.log('[ImageSearch] 이미지 URL로 검색 시작:', imageUrl);
 
-    // Fetch image as dataURL via background
-    const dataUrl = await sendMessage(ROUTES.FETCH_FILE_DATAURL, { url: imageUrl });
+    // 이미지 URL → dataURL 변환 (canvas 사용)
+    const dataUrl = await imageUrlToDataUrl(imageUrl);
+    if (!dataUrl) {
+      console.error('[ImageSearch] 이미지 변환 실패');
+      showResultsPanel([]);
+      return;
+    }
 
-    // Upload and search
-    await uploadAndSearch(dataUrl);
+    await searchAllPlatforms(dataUrl);
   } catch (err) {
     console.error('[ImageSearch] Error:', err);
+    showResultsPanel([]);
   }
 }
 
@@ -33,133 +39,79 @@ export async function startImageSearch(imageUrl, trigger = 'unknown') {
  */
 export async function startScreenshotSearch(trigger = 'unknown') {
   try {
-    // Capture and crop screenshot
     const croppedDataUrl = await captureScreenshot();
-
     showLoadingPanel();
-
-    // Upload and search
-    await uploadAndSearch(croppedDataUrl);
+    console.log('[ImageSearch] 스크린샷으로 검색 시작');
+    await searchAllPlatforms(croppedDataUrl);
   } catch (err) {
     if (err.message === 'Screenshot cancelled') return;
     console.error('[ImageSearch] Screenshot error:', err);
+    showResultsPanel([]);
   }
 }
 
 /**
- * Upload image and search across platforms
+ * 이미지 URL을 canvas를 이용해 dataURL로 변환
  */
-async function uploadAndSearch(dataUrl) {
-  try {
-    // 1. Upload to AliPrice
-    const uploadResult = await sendMessage(ROUTES.UPLOAD_IMAGE, { dataUrl });
+function imageUrlToDataUrl(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
 
-    if (uploadResult && uploadResult.uploadKey) {
-      // 2. Get analysis results
-      const analysisResult = await sendMessage(ROUTES.IMAGE_ANALYSIS, {
-        uploadKey: uploadResult.uploadKey,
-      });
-
-      if (analysisResult && analysisResult.results) {
-        showResultsPanel(normalizeResults(analysisResult.results));
-        return;
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.9));
+      } catch (e) {
+        console.warn('[ImageSearch] Canvas 변환 실패, background로 시도:', e.message);
+        // CORS 에러 시 background에서 fetch
+        fetchViaBackground(url).then(resolve);
       }
-    }
+    };
 
-    // 3. Fallback: Direct platform searches (parallel)
-    await searchPlatformsDirect(dataUrl);
-  } catch (err) {
-    console.error('[ImageSearch] Upload/search error:', err);
-    // Try direct platform search as fallback
-    await searchPlatformsDirect(dataUrl);
-  }
-}
+    img.onerror = () => {
+      console.warn('[ImageSearch] 이미지 로드 실패, background로 시도');
+      fetchViaBackground(url).then(resolve);
+    };
 
-/**
- * Search platforms directly (without AliPrice proxy)
- */
-async function searchPlatformsDirect(dataUrl) {
-  const platforms = [
-    () => search1688(dataUrl),
-    () => searchGoogleLens(dataUrl),
-  ];
-
-  // Run platform searches in parallel
-  const settled = await Promise.allSettled(platforms.map(fn => fn()));
-
-  const allResults = [];
-  settled.forEach(result => {
-    if (result.status === 'fulfilled' && result.value) {
-      allResults.push(...result.value);
-    }
+    img.src = url;
   });
-
-  showResultsPanel(allResults);
 }
 
 /**
- * Search 1688 via image
+ * Background 서비스 워커를 통해 이미지 fetch
  */
-async function search1688(dataUrl) {
+async function fetchViaBackground(url) {
   try {
-    const result = await sendMessage(ROUTES.UPLOAD_PROXY, {
-      url: 'https://open-s.alibaba.com/openservice/imageSearchOfferResultViewService',
-      method: 'POST',
-      formData: {
-        image: { dataUrl, filename: 'search.jpg' },
-      },
-    });
-
-    if (result && result.data && result.data.data) {
-      return (result.data.data.offerList || []).map(item => ({
-        title: item.subject || item.title || '',
-        price: item.priceDisplay || item.price || '',
-        imageUrl: item.imgUrl || item.imageUrl || '',
-        productUrl: `https://detail.1688.com/offer/${item.offerId}.html`,
-        platform: '1688',
-      }));
-    }
+    const dataUrl = await sendMessage(ROUTES.FETCH_FILE_DATAURL, { url });
+    return dataUrl;
   } catch (err) {
-    console.error('[ImageSearch] 1688 search error:', err);
+    console.error('[ImageSearch] Background fetch 실패:', err);
+    return null;
   }
-  return [];
 }
 
 /**
- * Search Google Lens via image
+ * 모든 플랫폼에서 검색
  */
-async function searchGoogleLens(dataUrl) {
+async function searchAllPlatforms(dataUrl) {
+  if (!dataUrl) {
+    showResultsPanel([]);
+    return;
+  }
+
+  console.log('[ImageSearch] 1688 검색 시작...');
+
   try {
-    const result = await sendMessage(ROUTES.UPLOAD_PROXY, {
-      url: 'https://lens.google.com/v3/upload',
-      method: 'POST',
-      formData: {
-        encoded_image: { dataUrl, filename: 'search.jpg' },
-      },
-    });
-
-    // Google Lens returns HTML, parse for product results
-    // This is a simplified version - full parsing needs more work
-    if (result && result.data) {
-      console.log('[ImageSearch] Google Lens response received');
-      // TODO: Parse Google Lens HTML response for product results
-    }
+    const results = await search1688ByImage(dataUrl);
+    console.log(`[ImageSearch] 1688 결과: ${results.length}건`);
+    showResultsPanel(results);
   } catch (err) {
-    console.error('[ImageSearch] Google Lens error:', err);
+    console.error('[ImageSearch] 검색 실패:', err);
+    showResultsPanel([]);
   }
-  return [];
-}
-
-/**
- * Normalize results from various sources
- */
-function normalizeResults(results) {
-  if (!Array.isArray(results)) return [];
-  return results.map(r => ({
-    title: r.title || r.subject || '',
-    price: r.price || r.priceDisplay || '',
-    imageUrl: r.imageUrl || r.imgUrl || r.image || '',
-    productUrl: r.productUrl || r.url || r.detailUrl || '#',
-    platform: r.platform || r.source || 'unknown',
-  }));
 }

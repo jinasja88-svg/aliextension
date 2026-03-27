@@ -43,6 +43,7 @@ const backgroundConfig = {
     splitChunks: false,
     runtimeChunk: false,
   },
+  devtool: false,
 };
 
 // Content script
@@ -72,6 +73,11 @@ const contentScriptConfig = {
     }),
   ],
   resolve: baseResolve,
+  optimization: {
+    splitChunks: false,
+    runtimeChunk: false,
+  },
+  devtool: false,
 };
 
 // Inject script (IIFE, no imports/exports)
@@ -94,6 +100,7 @@ const injectScriptConfig = {
     splitChunks: false,
     runtimeChunk: false,
   },
+  devtool: false,
 };
 
 // Popup (Vue/Vuex)
@@ -132,6 +139,11 @@ const popupConfig = {
     }),
   ],
   resolve: baseResolve,
+  optimization: {
+    splitChunks: false,
+    runtimeChunk: false,
+  },
+  devtool: false,
 };
 
 // Export multi-compiler configuration

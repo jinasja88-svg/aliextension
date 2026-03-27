@@ -34,6 +34,8 @@
 
 <script>
 import { IMAGE_SEARCH_PLATFORMS } from '../../../shared/platforms';
+import { sendMessage } from '../../../shared/wext';
+import { ROUTES } from '../../../shared/constants';
 
 export default {
   name: 'SearchByImage',
@@ -47,11 +49,6 @@ export default {
   methods: {
     async searchByUrl() {
       if (!this.imageUrl) return;
-      // Send to background for processing
-      const { sendMessage } = await import('../../../shared/wext');
-      const { ROUTES } = await import('../../../shared/constants');
-
-      // Open a new tab with search results
       await sendMessage(ROUTES.TAB_CREATE, {
         url: this.imageUrl,
         active: true,

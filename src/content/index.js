@@ -3,7 +3,8 @@ import browser from 'webextension-polyfill';
 import { detectPlatform } from '../shared/platforms';
 import { initMessageListener, onMessage } from '../shared/wext';
 import { initInjectBridge, sendToInject } from './inject-bridge';
-import { initSearchByImage } from './features/search-by-image';
+import { initSearchByImage, startImageSearch, startScreenshotSearch } from './features/search-by-image';
+import { initHoverButtons } from './ui/hover-container';
 
 // Current platform info
 let currentPlatform = null;
@@ -29,6 +30,7 @@ function init() {
 
   // Initialize features
   initSearchByImage(currentPlatform);
+  initHoverButtons(currentPlatform);
 
   if (currentPlatform) {
     console.log(`[Content] Platform detected: ${currentPlatform.name}`);
@@ -53,15 +55,9 @@ function registerHandlers() {
   onMessage('client/open_image_search', (payload) => {
     const { type, imageUrl, trigger } = payload;
     if (type === 'url' && imageUrl) {
-      // Direct image URL search
-      import('./features/search-by-image').then(m => {
-        m.startImageSearch(imageUrl, trigger);
-      });
+      startImageSearch(imageUrl, trigger);
     } else {
-      // Screenshot mode
-      import('./features/search-by-image').then(m => {
-        m.startScreenshotSearch(trigger);
-      });
+      startScreenshotSearch(trigger);
     }
   });
 

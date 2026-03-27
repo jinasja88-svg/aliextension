@@ -8,7 +8,7 @@ let hoverTimeout = null;
  * Initialize hover buttons on product images
  */
 export function initHoverButtons(platform) {
-  if (!platform) return;
+  // Works on all pages (not just detected platforms)
 
   // Observe for dynamically loaded images
   observer = new MutationObserver(() => {
@@ -31,19 +31,28 @@ function attachHoverButtons() {
   const images = document.querySelectorAll('img:not([data-ap-hover])');
 
   images.forEach(img => {
-    if (img.naturalWidth < MIN_IMAGE_SIZE || img.naturalHeight < MIN_IMAGE_SIZE) return;
     if (img.closest('[id^="ap-"]')) return; // Skip our own UI
-
     img.setAttribute('data-ap-hover', 'true');
 
-    img.addEventListener('mouseenter', () => {
-      hoverTimeout = setTimeout(() => showHoverButton(img), 300);
-    });
+    function bindHover() {
+      // Only attach to images large enough
+      if (img.naturalWidth < MIN_IMAGE_SIZE || img.naturalHeight < MIN_IMAGE_SIZE) return;
 
-    img.addEventListener('mouseleave', () => {
-      clearTimeout(hoverTimeout);
-      setTimeout(() => hideHoverButton(img), 200);
-    });
+      img.addEventListener('mouseenter', () => {
+        hoverTimeout = setTimeout(() => showHoverButton(img), 300);
+      });
+
+      img.addEventListener('mouseleave', () => {
+        clearTimeout(hoverTimeout);
+        setTimeout(() => hideHoverButton(img), 200);
+      });
+    }
+
+    if (img.complete) {
+      bindHover();
+    } else {
+      img.addEventListener('load', bindHover, { once: true });
+    }
   });
 }
 

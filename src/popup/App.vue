@@ -1,7 +1,8 @@
 <template>
   <div class="ap-popup">
     <div class="ap-popup-header">
-      <img class="ap-popup-logo" :src="logoUrl" alt="AliPrice" />
+      <img class="ap-popup-logo" :src="logoUrl" alt="SourceFinder" />
+      <span class="ap-popup-name">SourceFinder</span>
       <span class="ap-popup-version">v{{ version }}</span>
     </div>
     <div class="ap-popup-tabs">
@@ -80,6 +81,11 @@ export default {
 }
 .ap-popup-logo {
   width: 24px; height: 24px;
+}
+.ap-popup-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0ea5e9;
 }
 .ap-popup-version {
   font-size: 11px;
