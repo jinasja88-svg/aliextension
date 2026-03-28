@@ -5,6 +5,8 @@ import { initMessageListener, onMessage } from '../shared/wext';
 import { initInjectBridge, sendToInject } from './inject-bridge';
 import { initSearchByImage, startImageSearch, startScreenshotSearch } from './features/search-by-image';
 import { initHoverButtons } from './ui/hover-container';
+import { togglePageTranslation } from './features/page-translator';
+import { startScreenshotTranslation } from './features/screenshot-translator';
 
 // Current platform info
 let currentPlatform = null;
@@ -61,15 +63,14 @@ function registerHandlers() {
     }
   });
 
-  // Translator
-  onMessage('client/translator/page', (payload) => {
-    console.log('[Content] Translate page requested', payload);
-    // TODO: Phase 4 - Translation
+  // 페이지 번역 (Ctrl+Shift+2)
+  onMessage('client/translator/page', () => {
+    togglePageTranslation('ko');
   });
 
-  onMessage('client/translator/screenshot', (payload) => {
-    console.log('[Content] Screenshot translate requested', payload);
-    // TODO: Phase 4 - Translation
+  // 스크린샷 번역 (Ctrl+Shift+3)
+  onMessage('client/translator/screenshot', () => {
+    startScreenshotTranslation('ko');
   });
 
   // Captcha
